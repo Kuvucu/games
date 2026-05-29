@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🎮 Тетрис</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* контейнер игры */
+        .game-container {
+            background: rgba(10, 20, 30, 0.6);
+            backdrop-filter: blur(2px);
+            border-radius: 3rem;
+            padding: 1.5rem;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(72, 187, 255, 0.3);
+        }
+
+        .tetris-wrapper {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* игровое поле */
+        .play-area {
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border-radius: 1rem;
+            transition: all 0.2s;
+        }
+
+        #boardCanvas {
+            background-color: #0a121f;
+            border: 2px solid #2c3f5f;
+            box-shadow: 0 0 0 2px #1e2a3a, 0 15px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        #nextCanvas {
+            background-color: #0a121f;
+            border: 1px solid #3c5a7f;
+            border-radius: 1rem;
+        }
+
+        /* информационная панель */
+        .info-panel {
+            background: rgba(8, 18, 28, 0.8);
+            backdrop-filter: blur(8px);
+            border-radius: 1.8rem;
+            padding: 1.2rem 1.8rem;
+            min-width: 180px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 180, 250, 0.4);
+        }
+
+        .stats {
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #07111e;
+            margin: 12px 0;
+            padding: 8px 15px;
+            border-radius: 2rem;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            box-shadow: inset 0 1px 3px #00000030, 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid #2c4968;
+        }
+
+        .stat-label {
+            color: #8db5e0;
+            text-shadow: 0 1px 0 #000;
+        }
+
+        .stat-value {
+            color: #f2e982;
+            font-family: monospace;
+            font-weight: 800;
+            font-size: 1.7rem;
+        }
+
+        .mode-selector {
+            background: #0d1828;
+            border-radius: 2rem;
+            padding: 12px;
+            margin: 15px 0;
+        }
+
+        .mode-title {
+            font-size: 0.8rem;
+            color: #7f9fbf;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        select {
+            background: #192f44;
+            color: #eef5ff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 2rem;
+            font-weight: bold;
+            width: 100%;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 1rem;
+            text-align: center;
+            transition: 0.1s;
+            box-shadow: inset 0 1px 2px #00000033, 0 2px 5px #00000030;
+        }
+
+        select:hover {
+            background: #1f3e5a;
+            transform: scale(0.98);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .game-btn {
+            background: #162b3c;
+            border: none;
+            font-weight: bold;
+            font-size: 1rem;
+            padding: 8px 18px;
+            border-radius: 3rem;
+            color: #cae9ff;
+            cursor: pointer;
+            font-family: monospace;
+            transition: 0.1s linear;
+            box-shadow: 0 3px 0 #0a111c;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .game-btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            font-size: 0.7rem;
+            color: #96b4d4;
+            text-align: center;
+            background: #030a1470;
+            border-radius: 2rem;
+            padding: 8px;
+        }
+
+        hr {
+            border-color: #2b4b6e;
+            margin: 12px 0;
+        }
+
+        .ghost-note {
+            font-size: 0.7rem;
+            text-align: center;
+            background: #1e2e42;
+            border-radius: 20px;
+            padding: 4px;
+            margin-top: 10px;
+        }
+
+        @keyframes pulse {
+            0% { text-shadow: 0 0 0 #ffd966; }
+            100% { text-shadow: 0 0 8px #ffb347; }
+        }
+        .stat-value.highlight {
+            animation: pulse 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="tetris-wrapper">
+        <!-- основное поле -->
+        <div class="play-area">
+            <canvas id="boardCanvas" width="300" height="600"></canvas>
+        </div>
+
+        <!-- панель информации -->
+        <div class="info-panel">
+            <div class="stats">
+                <div class="stat-card"><span class="stat-label">🎯 СЧЁТ</span><span id="scoreValue" class="stat-value">0</span></div>
+                <div class="stat-card"><span class="stat-label">📊 ЛИНИИ</span><span id="linesValue" class="stat-value">0</span></div>
+                <div class="stat-card"><span class="stat-label">⚡ УРОВЕНЬ</span><span id="levelValue" class="stat-value">1</span></div>
+                <div class="stat-card"><span class="stat-label">🏆 РЕКОРД</span><span id="recordValue" class="stat-value">0</span></div>
+            </div>
+
+            <div class="mode-selector">
+                <div class="mode-title">🎮 ИГРОВОЙ РЕЖИМ</div>
+                <select id="modeSelect">
+                    <option value="classic">✨ КЛАССИКА (рост скорости)</option>
+                    <option value="sprint">⚡ СПРИНТ (очень быстро)</option>
+                    <option value="relax">🍃 РЕЛАКС (медленный темп)</option>
+                </select>
+            </div>
+
+            <div style="text-align: center; margin: 5px 0;">
+                <span style="background:#1f3348; padding:2px 12px; border-radius:20px; font-size:0.7rem;">🔮 Следующая фигура</span>
+                <canvas id="nextCanvas" width="120" height="120" style="margin: 10px auto; display: block;"></canvas>
+            </div>
+
+            <div class="btn-group">
+                <button id="newGameBtn" class="game-btn">🔄 НОВАЯ</button>
+                <button id="pauseBtn" class="game-btn">⏸️ ПАУЗА</button>
+            </div>
+
+            <div class="controls">
+                🎮 Управление:<br>
+                ◀ ▶ — движение &nbsp;&nbsp; ▲ — поворот<br>
+                ▼ — мягкое падение &nbsp;&nbsp; ␣ — хард дроп<br>
+                [P] — пауза &nbsp;&nbsp; [R] — рестарт
+            </div>
+            <div class="ghost-note">
+                👻 Призрачная тень показывает точное место падения
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- КОНФИГУРАЦИЯ ----------
+        const COLS = 10;
+        const ROWS = 20;
+        const CELL_SIZE = 30;    // px
+
+        // Холсты
+        const boardCanvas = document.getElementById('boardCanvas');
+        const ctx = boardCanvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        // DOM элементы
+        const scoreSpan = document.getElementById('scoreValue');
+        const linesSpan = document.getElementById('linesValue');
+        const levelSpan = document.getElementById('levelValue');
+        const recordSpan = document.getElementById('recordValue');
+        const modeSelect = document.getElementById('modeSelect');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        // ---------- Глобальные переменные игры ----------
+        let grid = [];            // 2d массив (ROWS x COLS) 0 - пусто, иначе цвет (string)
+        let activePiece = null;   // { shape, color, x, y }
+        let nextPiece = null;
+        let gameActive = true;     // игра не закончена
+        let isPaused = false;
+        let animationFramePending = false;
+        let gameInterval = null;
+        
+        // Игровая статистика
+        let score = 0;
+        let totalLines = 0;
+        let level = 1;
+        let record = 0;
+
+        // Загружаем рекорд
+        try {
+            let saved = localStorage.getItem('tetrisHighScore');
+            if(saved && !isNaN(parseInt(saved))) record = parseInt(saved);
+            recordSpan.innerText = record;
+        } catch(e) { /* игнор */ }
+
+        // ---------- Фигуры и цвета ----------
+        const TETROMINOS = [
+            {   // I
+                shape: [[1,1,1,1]],
+                color: '#2ad4e3'
+            },
+            {   // O
+                shape: [[1,1],[1,1]],
+                color: '#f7d44a'
+            },
+            {   // T
+                shape: [[0,1,0],[1,1,1]],
+                color: '#c569de'
+            },
+            {   // S
+                shape: [[0,1,1],[1,1,0]],
+                color: '#6fcf97'
+            },
+            {   // Z
+                shape: [[1,1,0],[0,1,1]],
+                color: '#e66767'
+            },
+            {   // L
+                shape: [[1,0,0],[1,1,1]],
+                color: '#e9b35f'
+            },
+            {   // J
+                shape: [[0,0,1],[1,1,1]],
+                color: '#5d9bdb'
+            }
+        ];
+
+        // получить случайную фигуру
+        function getRandomTetromino() {
+            const idx = Math.floor(Math.random() * TETROMINOS.length);
+            const original = TETROMINOS[idx];
+            // глубокое копирование формы
+            const shapeCopy = original.shape.map(row => [...row]);
+            return {
+                shape: shapeCopy,
+                color: original.color
+            };
+        }
+
+        // инициализация пустого поля
+        function initGrid() {
+            grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        }
+
+        // спавн новой фигуры (активной)
+        function spawnNewPiece() {
+            if(!nextPiece) {
+                nextPiece = getRandomTetromino();
+            }
+            activePiece = {
+                shape: nextPiece.shape.map(row => [...row]),
+                color: nextPiece.color,
+                x: Math.floor((COLS - nextPiece.shape[0].length) / 2),
+                y: 0
+            };
+            // генерируем следующую
+            nextPiece = getRandomTetromino();
+
+            // если при спавне сразу коллизия -> game over
+            if(collision(activePiece.shape, activePiece.x, activePiece.y)) {
+                gameActive = false;
+                if(gameInterval) clearInterval(gameInterval);
+                gameInterval = null;
+                alert("💀 GAME OVER! Нажмите «Новая игра» 💀");
+                drawAll();
+                return false;
+            }
+            drawAll();
+            return true;
+        }
+
+        // проверка столкновения
+        function collision(shape, offsetX, offsetY) {
+            for(let row = 0; row < shape.length; row++) {
+                for(let col = 0; col < shape[0].length; col++) {
+                    if(shape[row][col] !== 0) {
+                        const boardX = offsetX + col;
+                        const boardY = offsetY + row;
+                        if(boardX < 0 || boardX >= COLS || boardY >= ROWS || boardY < 0) {
+                            return true;
+                        }
+                        if(boardY >= 0 && grid[boardY][boardX] !== 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // зафиксировать активную фигуру на поле
+        function mergePiece() {
+            for(let r = 0; r < activePiece.shape.length; r++) {
+                for(let c = 0; c < activePiece.shape[0].length; c++) {
+                    if(activePiece.shape[r][c] !== 0) {
+                        const boardX = activePiece.x + c;
+                        const boardY = activePiece.y + r;
+                        if(boardY >= 0 && boardY < ROWS && boardX >=0 && boardX < COLS) {
+                            grid[boardY][boardX] = activePiece.color;
+                        }
+                    }
+                }
+            }
+            // очистка линий и подсчет очков
+            const linesCleared = clearLinesAndScore();
+            if(linesCleared > 0) {
+                totalLines += linesCleared;
+                updateScoreAndLevel(linesCleared);
+                updateLevelSpeed(); // обновляем скорость после изменения уровня
+                drawAll();
+            }
+            // спавн следующей фигуры
+            const success = spawnNewPiece();
+            if(!success) {
+                // game over уже обработан
+                drawAll();
+            }
+            drawAll();
+            if(gameActive) updateGhostAndRedraw();
+        }
+
+        // удаление полных строк и возврат количества
+        function clearLinesAndScore() {
+            let rowsCleared = 0;
+            for(let row = ROWS-1; row >= 0; ) {
+                let full = true;
+                for(let col = 0; col < COLS; col++) {
+                    if(grid[row][col] === 0) {
+                        full = false;
+                        break;
+                    }
+                }
+                if(full) {
+                    // удаляем строку
+                    for(let r = row; r > 0; r--) {
+                        grid[r] = [...grid[r-1]];
+                    }
+                    grid[0] = Array(COLS).fill(0);
+                    rowsCleared++;
+                    // проверяем ту же строку снова
+                } else {
+                    row--;
+                }
+            }
+            return rowsCleared;
+        }
+
+        // очки по классической формуле + анимация
+        function updateScoreAndLevel(linesCleared) {
+            let points = 0;
+            switch(linesCleared) {
+                case 1: points = 40 * level; break;
+                case 2: points = 100 * level; break;
+                case 3: points = 300 * level; break;
+                case 4: points = 800 * level; break;
+                default: points = 0;
+            }
+            score += points;
+            scoreSpan.innerText = score;
+            // анимация счета
+            scoreSpan.classList.add('highlight');
+            setTimeout(() => scoreSpan.classList.remove('highlight'), 200);
+            
+            // обновляем уровень: каждые 10 линий
+            const newLevel = Math.floor(totalLines / 10) + 1;
+            if(newLevel !== level) {
+                level = newLevel;
+                levelSpan.innerText = level;
+                levelSpan.classList.add('highlight');
+                setTimeout(() => levelSpan.classList.remove('highlight'), 250);
+            } else {
+                levelSpan.innerText = level;
+            }
+            linesSpan.innerText = totalLines;
+            
+            // обновление рекорда
+            if(score > record) {
+                record = score;
+                recordSpan.innerText = record;
+                localStorage.setItem('tetrisHighScore', record);
+                recordSpan.classList.add('highlight');
+                setTimeout(() => recordSpan.classList.remove('highlight'), 400);
+            }
+        }
+
+        // получение задержки в зависимости от режима и уровня
+        function getCurrentDelay() {
+            const mode = modeSelect.value;
+            let delay = 500; // base
+            if(mode === 'classic') {
+                // классическая формула: 500 / (level * 0.8 + 0.5) но не быстрее 80
+                let raw = 500 / (level * 0.7 + 0.6);
+                delay = Math.min(Math.max(Math.floor(raw), 85), 550);
+            }
+            else if(mode === 'sprint') {
+                // очень быстро
+                let raw = 280 / (level * 0.9 + 0.4);
+                delay = Math.min(Math.max(Math.floor(raw), 50), 320);
+            }
+            else { // relax
+                let raw = 700 / (level * 0.3 + 1);
+                delay = Math.min(Math.max(Math.floor(raw), 190), 700);
+            }
+            return delay;
+        }
+
+        // перезапуск игрового интервала (скорость)
+        function updateLevelSpeed() {
+            if(gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            if(gameActive && !isPaused) {
+                const delay = getCurrentDelay();
+                gameInterval = setInterval(gameTick, delay);
+            }
+        }
+
+        // тик гравитации
+        function gameTick() {
+            if(!gameActive || isPaused) return;
+            if(movePieceDown()) {
+                drawAll();
+            } else {
+                // не удалось сместить вниз -> фиксация
+                mergePiece();
+                drawAll();
+                updateGhostAndRedraw();
+                // проверка game active после слияния
+                if(!gameActive) {
+                    if(gameInterval) clearInterval(gameInterval);
+                    gameInterval = null;
+                } else {
+                    updateLevelSpeed(); // чтобы скорость актуализировать после спавна/уровня
+                }
+            }
+        }
+
+        // движения
+        function movePieceDown() {
+            if(!activePiece) return false;
+            activePiece.y++;
+            if(collision(activePiece.shape, activePiece.x, activePiece.y)) {
+                activePiece.y--;
+                return false;
+            }
+            return true;
+        }
+
+        function moveHorizontal(dx) {
+            if(!activePiece || !gameActive || isPaused) return;
+            activePiece.x += dx;
+            if(collision(activePiece.shape, activePiece.x, activePiece.y)) {
+                activePiece.x -= dx;
+            } else {
+                drawAll();
+                updateGhostAndRedraw();
+            }
+        }
+
+        function rotatePiece() {
+            if(!activePiece || !gameActive || isPaused) return;
+            // поворот матрицы
+            const oldShape = activePiece.shape;
+            const rotated = oldShape[0].map((_, idx) => oldShape.map(row => row[idx]).reverse());
+            const oldColor = activePiece.color;
+            const oldX = activePiece.x;
+            const oldY = activePiece.y;
+            // проверка стен (сдвиг при необходимости)
+            if(!collision(rotated, activePiece.x, activePiece.y)) {
+                activePiece.shape = rotated;
+            } else {
+                // попробуем сместить влево/вправо
+                for(let shift of [-1,1,-2,2]) {
+                    if(!collision(rotated, activePiece.x + shift, activePiece.y)) {
+                        activePiece.shape = rotated;
+                        activePiece.x += shift;
+                        break;
+                    }
+                }
+            }
+            drawAll();
+            updateGhostAndRedraw();
+        }
+
+        function hardDrop() {
+            if(!activePiece || !gameActive || isPaused) return;
+            while(movePieceDown()) {}
+            mergePiece();   // фиксация внизу
+            drawAll();
+            updateGhostAndRedraw();
+            if(gameActive) updateLevelSpeed();
+        }
+
+        // Призрак (тень)
+        function getGhostY() {
+            if(!activePiece) return activePiece?.y;
+            let ghostY = activePiece.y;
+            while(true) {
+                if(!collision(activePiece.shape, activePiece.x, ghostY+1)) ghostY++;
+                else break;
+            }
+            return ghostY;
+        }
+
+        // Отрисовка всего (поле, активная фигура, тень, следующая)
+        function drawAll() {
+            if(!gameActive && !activePiece) {
+                drawBoardOnly();
+                return;
+            }
+            drawBoardOnly();
+            if(activePiece && gameActive) {
+                // рисуем призрак
+                const ghostY = getGhostY();
+                if(ghostY !== activePiece.y) {
+                    ctx.globalAlpha = 0.3;
+                    for(let r=0; r<activePiece.shape.length; r++) {
+                        for(let c=0; c<activePiece.shape[0].length; c++) {
+                            if(activePiece.shape[r][c]) {
+                                const x = (activePiece.x + c) * CELL_SIZE;
+                                const y = (ghostY + r) * CELL_SIZE;
+                                ctx.fillStyle = activePiece.color;
+                                ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                                ctx.strokeStyle = "#ffffff80";
+                                ctx.strokeRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                            }
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                }
+                // рисуем активную фигуру
+                for(let r=0; r<activePiece.shape.length; r++) {
+                    for(let c=0; c<activePiece.shape[0].length; c++) {
+                        if(activePiece.shape[r][c]) {
+                            const x = (activePiece.x + c) * CELL_SIZE;
+                            const y = (activePiece.y + r) * CELL_SIZE;
+                            ctx.fillStyle = activePiece.color;
+                            ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                            ctx.shadowBlur = 4;
+                            ctx.shadowColor = "rgba(0,0,0,0.5)";
+                            ctx.fillStyle = activePiece.color;
+                            ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                            ctx.shadowBlur = 0;
+                            ctx.strokeStyle = "#ffffff80";
+                            ctx.strokeRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                        }
+                    }
+                }
+            }
+            drawNextPiece();
+        }
+
+        function drawBoardOnly() {
+            ctx.clearRect(0, 0, 300, 600);
+            // сетка и блоки
+            for(let row=0; row<ROWS; row++) {
+                for(let col=0; col<COLS; col++) {
+                    const color = grid[row][col];
+                    const x = col * CELL_SIZE;
+                    const y = row * CELL_SIZE;
+                    if(color !== 0) {
+                        ctx.fillStyle = color;
+                        ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                        ctx.strokeStyle = "#1e2f42";
+                        ctx.strokeRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                        // градиентный блеск
+                        ctx.fillStyle = "rgba(255,255,255,0.2)";
+                        ctx.fillRect(x+2, y+2, CELL_SIZE-5, 4);
+                    } else {
+                        ctx.fillStyle = "#0e1622";
+                        ctx.fillRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                        ctx.strokeStyle = "#1e2a38";
+                        ctx.strokeRect(x, y, CELL_SIZE-1, CELL_SIZE-1);
+                    }
+                }
+            }
+        }
+
+        function drawNextPiece() {
+            nextCtx.clearRect(0, 0, 120, 120);
+            nextCtx.fillStyle = "#0a121f";
+            nextCtx.fillRect(0, 0, 120, 120);
+            if(nextPiece) {
+                const shape = nextPiece.shape;
+                const color = nextPiece.color;
+                const blockW = 30;
+                const shapeCols = shape[0].length;
+                const shapeRows = shape.length;
+                const startX = (120 - (shapeCols * 30)) / 2;
+                const startY = (120 - (shapeRows * 30)) / 2;
+                for(let r=0; r<shapeRows; r++) {
+                    for(let c=0; c<shapeCols; c++) {
+                        if(shape[r][c]) {
+                            nextCtx.fillStyle = color;
+                            nextCtx.fillRect(startX + c*30, startY + r*30, 28, 28);
+                            nextCtx.strokeStyle = "#bcd0ff";
+                            nextCtx.strokeRect(startX + c*30, startY + r*30, 28, 28);
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateGhostAndRedraw() {
+            drawAll();
+        }
+
+        // сброс всей игры
+        function resetGame() {
+            if(gameInterval) clearInterval(gameInterval);
+            gameInterval = null;
+            initGrid();
+            score = 0;
+            totalLines = 0;
+            level = 1;
+            gameActive = true;
+            isPaused = false;
+            pauseBtn.innerText = "⏸️ ПАУЗА";
+            scoreSpan.innerText = "0";
+            linesSpan.innerText = "0";
+            levelSpan.innerText = "1";
+            // генерируем фигуры
+            nextPiece = getRandomTetromino();
+            const successSpawn = (function(){
+                activePiece = {
+                    shape: nextPiece.shape.map(row => [...row]),
+                    color: nextPiece.color,
+                    x: Math.floor((COLS - nextPiece.shape[0].length) / 2),
+                    y: 0
+                };
+                nextPiece = getRandomTetromino();
+                if(collision(activePiece.shape, activePiece.x, activePiece.y)) {
+                    gameActive = false;
+                    return false;
+                }
+                return true;
+            })();
+            if(!successSpawn) {
+                // если критично, просто перезапустим поле чисто
+                initGrid();
+                nextPiece = getRandomTetromino();
+                activePiece = {
+                    shape: nextPiece.shape.map(row => [...row]),
+                    color: nextPiece.color,
+                    x: Math.floor((COLS - nextPiece.shape[0].length) / 2),
+                    y: 0
+                };
+                nextPiece = getRandomTetromino();
+                gameActive = true;
+            }
+            drawAll();
+            updateLevelSpeed();
+        }
+
+        // пауза
+        function togglePause() {
+            if(!gameActive) return;
+            isPaused = !isPaused;
+            if(isPaused) {
+                if(gameInterval) clearInterval(gameInterval);
+                gameInterval = null;
+                pauseBtn.innerText = "▶️ СТАРТ";
+                drawAll();
+                ctx.globalAlpha = 0.7;
+                ctx.fillStyle = "#000000aa";
+                ctx.fillRect(0, 0, 300, 600);
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = "#ffefb9";
+                ctx.font = "bold 20px monospace";
+                ctx.shadowBlur = 0;
+                ctx.fillText("ПАУЗА", 100, 280);
+            } else {
+                pauseBtn.innerText = "⏸️ ПАУЗА";
+                drawAll();
+                updateLevelSpeed();
+            }
+        }
+
+        // смена режима -> сброс
+        function onModeChange() {
+            resetGame();
+        }
+
+        // инициализация управления
+        function handleKey(e) {
+            const key = e.key;
+            if(!gameActive && key !== 'r' && key !== 'R') {
+                if(key === ' ' || key === 'ArrowUp' || key === 'ArrowDown' || key === 'ArrowLeft' || key === 'ArrowRight') {
+                    e.preventDefault();
+                }
+                return;
+            }
+            if(key === 'p' || key === 'P' || key === '⏸') {
+                e.preventDefault();
+                togglePause();
+                return;
+            }
+            if(key === 'r' || key === 'R') {
+                e.preventDefault();
+                resetGame();
+                return;
+            }
+            if(isPaused) return;
+            switch(key) {
+                case 'ArrowLeft': moveHorizontal(-1); e.preventDefault(); break;
+                case 'ArrowRight': moveHorizontal(1); e.preventDefault(); break;
+                case 'ArrowDown': movePieceDown(); drawAll(); updateGhostAndRedraw(); e.preventDefault(); break;
+                case 'ArrowUp': rotatePiece(); e.preventDefault(); break;
+                case ' ': case 'Space': hardDrop(); e.preventDefault(); break;
+                default: break;
+            }
+        }
+
+        // привязка событий
+        window.addEventListener('keydown', handleKey);
+        newGameBtn.addEventListener('click', () => resetGame());
+        pauseBtn.addEventListener('click', () => togglePause());
+        modeSelect.addEventListener('change', onModeChange);
+        
+        // Старт игры
+        resetGame();
+        // дополнительная проверка, что активен интервал
+        setInterval(() => {
+            if(gameActive && !isPaused && !gameInterval) {
+                updateLevelSpeed();
+            }
+        }, 500);
+    })();
+</script>
+</body>
+</html>
