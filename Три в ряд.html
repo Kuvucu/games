@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Три в ряд</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            font-family: monospace;
+        }
+        .game-container {
+            background: #2c1e12;
+            border-radius: 70px;
+            padding: 20px 24px 28px 24px;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.5), inset 0 1px 4px rgba(255,255,200,0.3);
+            border: 1px solid #e9c891;
+            display: inline-block;
+            max-width: 100%;
+        }
+        .game-panel {
+            background: #fef3d6;
+            border-radius: 52px;
+            padding: 20px 24px 24px 24px;
+            box-shadow: inset 0 0 0 2px #fff6e5, 0 15px 25px rgba(0,0,0,0.3);
+        }
+        .mode-bar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            background: #ffb347;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #8b5a2b;
+            transition: 0.05s linear;
+        }
+        .mode-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #8b5a2b; }
+        .mode-btn.active {
+            background: #f5a623;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(2px);
+        }
+        .settings-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            align-items: center;
+            flex-wrap: wrap;
+            min-height: 48px;
+        }
+        .info-panel {
+            background: #3e2a1f;
+            border-radius: 40px;
+            padding: 8px 20px;
+            color: #ffd966;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.1rem;
+            font-family: monospace;
+            letter-spacing: 1px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .settings-row select, .settings-row button {
+            background: #fef3d6;
+            border: 2px solid #ab8e54;
+            border-radius: 30px;
+            padding: 6px 12px;
+            font-weight: bold;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        .top-area {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: nowrap;
+        }
+        canvas {
+            display: block;
+            border-radius: 32px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            cursor: pointer;
+            background-color: #f2e5c2;
+            width: auto;
+            height: auto;
+            max-width: 580px;
+            max-height: 580px;
+            aspect-ratio: 1 / 1;
+            touch-action: none;
+        }
+        .side-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+        .icon-btn {
+            background: #ffb347;
+            border: none;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.1s linear;
+            color: #2c1e0a;
+            box-shadow: 0 5px 0 #8b5a2b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            touch-action: manipulation;
+        }
+        .icon-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #8b5a2b;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #2b2118;
+            border-radius: 40px;
+            padding: 8px 18px;
+            color: #ffd966;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+        .stat-value {
+            font-size: 1.4rem;
+        }
+        .message-area {
+            background: #3e2a1f;
+            border-radius: 40px;
+            color: #fae67a;
+            font-weight: bold;
+            font-size: 1rem;
+            text-align: center;
+            padding: 8px 12px;
+            margin-top: 12px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cat-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(3px);
+        }
+        .cat-overlay img {
+            max-width: 70vw;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 20px;
+            border: 3px solid #ffcc66;
+            box-shadow: 0 0 30px gold;
+        }
+        .cat-message {
+            position: absolute;
+            bottom: 18%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: black;
+            color: #ffcc66;
+            font-size: 1.5rem;
+            padding: 10px 20px;
+            border-radius: 40px;
+            white-space: nowrap;
+            font-weight: bold;
+            text-align: center;
+            font-family: monospace;
+        }
+        .cat-tooltip {
+            position: absolute;
+            bottom: 28%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffdd99;
+            color: #2c1e0a;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-weight: bold;
+            opacity: 0;
+            transition: 0.2s;
+            pointer-events: none;
+        }
+        .secret-button {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 22px;
+            height: 22px;
+            background: rgba(0,0,0,0.2);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10001;
+            opacity: 0.2;
+            transition: 0.2s;
+        }
+        .secret-button:hover { opacity: 0.6; background: #ffb347; }
+        .admin-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2c1e12;
+            border: 3px solid #ffb347;
+            border-radius: 40px;
+            padding: 20px;
+            z-index: 10002;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+        .admin-modal input {
+            padding: 8px;
+            font-size: 1.2rem;
+            text-align: center;
+            border-radius: 30px;
+            width: 120px;
+            background: #fef3d6;
+            border: none;
+            font-family: monospace;
+        }
+        .admin-modal button {
+            background: #ffb347;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .admin-modal .reset-btn {
+            background: #d9534f;
+            color: white;
+        }
+        @media (max-width: 700px) {
+            .cat-message { font-size: 1rem; white-space: normal; width: 80%; text-align: center; bottom: 12%;}
+            .icon-btn { width: 52px; height: 52px; font-size: 1.7rem; }
+            .stat-value { font-size: 1.2rem; }
+            .message-area { min-height: 50px; }
+            .info-panel { font-size: 0.8rem; padding: 5px 12px; }
+        }
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 12px;
+            color: #ab8e54;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="game-panel">
+        <div class="mode-bar">
+            <button id="modeClassicBtn" class="mode-btn active">🎮 Классический</button>
+            <button id="modeTimedBtn" class="mode-btn">⏱ На время</button>
+            <button id="modeMovesBtn" class="mode-btn">🎯 На ходы (уровни)</button>
+        </div>
+        <div id="modeSettings" class="settings-row"></div>
+
+        <div class="top-area">
+            <canvas id="gameCanvas" width="580" height="580"></canvas>
+            <div class="side-buttons">
+                <button id="newGameBtn" class="icon-btn" title="Новая игра">🔄</button>
+                <button id="shuffleBtn" class="icon-btn" title="Перемешать">♻️</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card"><div class="stat-label">★ ОЧКИ ★</div><div class="stat-value" id="scoreValue">0</div></div>
+            <div class="stat-card" id="extraStat"><div class="stat-label" id="extraLabel"></div><div class="stat-value" id="extraValue"></div></div>
+            <div class="stat-card" id="recordStat"><div class="stat-label" id="recordLabel">🏆 РЕКОРД</div><div class="stat-value" id="recordValue">0</div></div>
+        </div>
+        <div class="message-area" id="statusMsg">✨ выбери режим ✨</div>
+        <footer>⬤ меняй фигуры местами, собирай ряды ✨ Кот придёт через 15 минут игры (классика/ходы)</footer>
+    </div>
+</div>
+
+<div id="catOverlay" class="cat-overlay">
+   <!-- <img id="catImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23f4a261'/%3E%3Ccircle cx='30' cy='40' r='5' fill='%233d2b1a'/%3E%3Ccircle cx='70' cy='40' r='5' fill='%233d2b1a'/%3E%3Cpath d='M40 65 Q50 75 60 65' stroke='%238b5a2b' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M20 30 L10 15 L25 22' fill='%23e9c46a'/%3E%3Cpath d='M80 30 L90 15 L75 22' fill='%23e9c46a'/%3E%3Ctext x='50' y='80' text-anchor='middle' font-size='14' fill='%23443322'%3E😾%3C/text%3E%3C/svg%3E" alt="кот">-->
+<img id="catImage" src="cat.png" alt="кот">
+    <div class="cat-message">😾 Ваш лимит исчерпан, идите ка вы делом займитесь.. 😾</div>
+    <div id="catTooltip" class="cat-tooltip">😸</div>
+</div>
+
+<button id="secretBtn" class="secret-button" title=""></button>
+<div id="adminModal" class="admin-modal">
+    <input type="text" id="adminPassword" placeholder="9999" maxlength="4" pattern="\d*" inputmode="numeric">
+    <div>
+        <button id="unlockBtn">🔓 Разблокировать</button>
+        <button id="testCatBtn">🐱 Показать котика</button>
+        <button id="resetProgressBtn" class="reset-btn">🗑️ Сброс прогресса</button>
+    </div>
+    <button id="closeAdminBtn" style="background:#aaa;">Закрыть</button>
+</div>
+
+<script>
+    (function(){
+        // ----- НАСТРОЙКИ -----
+        const ROWS = 8;
+        const COLS = 8;
+        const BASE_TILE_TYPES = 6;
+        const MATCH_REQUIRED = 3;
+        const POINTS_PER_TILE = 10;
+        const CLASSIC_TIME_LIMIT = 900; // 15 минут активной игры
+
+        // Уровни для режима "на ходы"
+        const LEVELS = [
+            { targetScore: 500,  moves: 40 },
+            { targetScore: 1000, moves: 70 },
+            { targetScore: 1600, moves: 105 },
+            { targetScore: 2300, moves: 145 },
+            { targetScore: 3100, moves: 190 },
+            { targetScore: 4000, moves: 240 },
+            { targetScore: 5000, moves: 295 },
+            { targetScore: 6100, moves: 355 },
+            { targetScore: 7300, moves: 420 },
+            { targetScore: 8600, moves: 490 }
+        ];
+        const MAX_LEVEL = LEVELS.length;
+
+        // Глобальные переменные
+        let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        let currentScore = 0;
+        let selectedRow = null, selectedCol = null;
+        let gameLock = false;
+        let isGameOver = false;
+        let currentMode = 'classic';
+        
+        // Таймерный режим
+        let timedRemaining = 0;
+        let timedTimer = null;
+        let currentTimedChoice = 30;
+        
+        // Режим ходов (уровни)
+        let movesLevel = 1;
+        let movesLeft = 0;
+        let movesTarget = 0;
+        
+        // Кот и блокировка
+        let activeTime = 0;
+        let activeTimer = null;
+        let lockUntil = 0;
+        let isBlocked = false;
+        let catClickCount = 0;
+        
+        // Рекорды
+        let classicRecord = 0;
+        let timedRecords = { 30:0, 60:0, 120:0, 300:0 };
+        
+        // DOM
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreSpan = document.getElementById("scoreValue");
+        const statusDiv = document.getElementById("statusMsg");
+        const shuffleBtn = document.getElementById("shuffleBtn");
+        const newGameBtn = document.getElementById("newGameBtn");
+        const modeClassicBtn = document.getElementById("modeClassicBtn");
+        const modeTimedBtn = document.getElementById("modeTimedBtn");
+        const modeMovesBtn = document.getElementById("modeMovesBtn");
+        const modeSettings = document.getElementById("modeSettings");
+        const extraStat = document.getElementById("extraStat");
+        const extraLabel = document.getElementById("extraLabel");
+        const extraValue = document.getElementById("extraValue");
+        const recordStat = document.getElementById("recordStat");
+        const recordLabel = document.getElementById("recordLabel");
+        const recordValue = document.getElementById("recordValue");
+        const catOverlay = document.getElementById("catOverlay");
+        const catTooltip = document.getElementById("catTooltip");
+        const secretBtn = document.getElementById("secretBtn");
+        const adminModal = document.getElementById("adminModal");
+        const adminPassword = document.getElementById("adminPassword");
+        const unlockBtn = document.getElementById("unlockBtn");
+        const testCatBtn = document.getElementById("testCatBtn");
+        const resetProgressBtn = document.getElementById("resetProgressBtn");
+        const closeAdminBtn = document.getElementById("closeAdminBtn");
+        
+        const meowSound = new Audio("meow.mp3");
+        meowSound.volume = 0.3;
+        
+        const PHYSICAL_WIDTH = 580;
+        const PHYSICAL_HEIGHT = 580;
+        const cellW = PHYSICAL_WIDTH / COLS;
+        const cellH = PHYSICAL_HEIGHT / ROWS;
+        
+        // ----- Анимации -----
+        let animSwap = null;      // { fromRow, fromCol, toRow, toCol, fromTile, toTile, progress }
+        let animFalls = [];       // массив анимаций падения { fromRow, toRow, col, tileType, progress }
+        
+        // ----- Отрисовка фигур -----
+        function drawShape(ctx, cx, cy, size, type, color) {
+            const r = size * 0.9;
+            ctx.save();
+            ctx.fillStyle = color;
+            ctx.shadowColor = "rgba(0,0,0,0.3)";
+            ctx.shadowBlur = 3;
+            ctx.beginPath();
+            switch(type) {
+                case 0: const half = r * 0.8; ctx.rect(cx - half, cy - half, half*2, half*2); break;
+                case 1: const triH = r * 1.2, triW = r * 1.2; ctx.moveTo(cx, cy - triH/1.5); ctx.lineTo(cx - triW/2, cy + triH/3); ctx.lineTo(cx + triW/2, cy + triH/3); ctx.closePath(); break;
+                case 2: const rhombW = r, rhombH = r; ctx.moveTo(cx, cy - rhombH/1.2); ctx.lineTo(cx + rhombW/1.2, cy); ctx.lineTo(cx, cy + rhombH/1.2); ctx.lineTo(cx - rhombW/1.2, cy); ctx.closePath(); break;
+                case 3: ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2); break;
+                case 4: const points = 5, outerR = r * 0.9, innerR = r * 0.4; for (let i = 0; i < points * 2; i++) { const radius = i % 2 === 0 ? outerR : innerR; const angle = (Math.PI * 2 * i) / (points * 2) - Math.PI / 2; const x = cx + radius * Math.cos(angle), y = cy + radius * Math.sin(angle); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); break;
+                case 5: const sides = 6, hexR = r * 0.85; for (let i = 0; i < sides; i++) { const angle = (Math.PI * 2 * i) / sides - Math.PI / 6; const x = cx + hexR * Math.cos(angle), y = cy + hexR * Math.sin(angle); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); break;
+                default: ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+            }
+            if (type < 6) { ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = "#ab8e54"; ctx.lineWidth = 1.5; ctx.stroke(); }
+            ctx.restore();
+        }
+        
+        function drawTile(row, col, type, offsetX = 0, offsetY = 0) {
+            const x = col * cellW + offsetX, y = row * cellH + offsetY;
+            const colors = ["#E76F51", "#F4A261", "#E9C46A", "#6A994E", "#457B9D", "#B5838D"];
+            const color = colors[type % colors.length];
+            const centerX = x + cellW/2, centerY = y + cellH/2;
+            const size = Math.min(cellW, cellH) * 0.45;
+            ctx.fillStyle = "#f7efcf";
+            ctx.fillRect(x, y, cellW-0.5, cellH-0.5);
+            ctx.strokeStyle = "#ddc8a3";
+            ctx.strokeRect(x, y, cellW, cellH);
+            drawShape(ctx, centerX, centerY, size, type, color);
+        }
+        
+        function render() {
+            ctx.clearRect(0, 0, PHYSICAL_WIDTH, PHYSICAL_HEIGHT);
+            // Рисуем фон сетки
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    ctx.fillStyle = "#f7efcf";
+                    ctx.fillRect(c*cellW, r*cellH, cellW-0.5, cellH-0.5);
+                    ctx.strokeStyle = "#ddc8a3";
+                    ctx.strokeRect(c*cellW, r*cellH, cellW, cellH);
+                }
+            }
+            // Определяем ячейки, которые рисуются с анимацией
+            const animatedCells = new Set();
+            if (animSwap) {
+                animatedCells.add(`${animSwap.fromRow},${animSwap.fromCol}`);
+                animatedCells.add(`${animSwap.toRow},${animSwap.toCol}`);
+            }
+            for (let f of animFalls) animatedCells.add(`${f.toRow},${f.col}`);
+            
+            // Обычные тайлы
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (!animatedCells.has(`${r},${c}`)) drawTile(r, c, board[r][c]);
+                }
+            }
+            // Анимация обмена
+            if (animSwap) {
+                const { fromRow, fromCol, toRow, toCol, fromTile, toTile, progress } = animSwap;
+                const fromX = fromCol * cellW, fromY = fromRow * cellH;
+                const toX = toCol * cellW, toY = toRow * cellH;
+                const dx = (toX - fromX) * progress, dy = (toY - fromY) * progress;
+                drawTile(fromRow, fromCol, fromTile, dx, dy);
+                drawTile(toRow, toCol, toTile, -dx, -dy);
+            }
+            // Анимация падения
+            for (let f of animFalls) {
+                const { fromRow, toRow, col, tileType, progress } = f;
+                const currentRow = fromRow + (toRow - fromRow) * progress;
+                const yOffset = (currentRow - toRow) * cellH;
+                drawTile(toRow, col, tileType, 0, yOffset);
+            }
+            // Рамка выделения
+            if (selectedRow !== null && selectedCol !== null && !isGameOver && !gameLock && !isBlocked) {
+                const x = selectedCol * cellW, y = selectedRow * cellH;
+                const size = Math.min(cellW, cellH) * 0.45;
+                const cx = x + cellW/2, cy = y + cellH/2;
+                ctx.beginPath(); ctx.arc(cx, cy, size+6, 0, Math.PI*2); ctx.strokeStyle = "#FFD966"; ctx.lineWidth = 4; ctx.stroke();
+                ctx.beginPath(); ctx.arc(cx, cy, size+9, 0, Math.PI*2); ctx.strokeStyle = "#F2B807"; ctx.lineWidth = 2.5; ctx.stroke();
+            }
+            if (isGameOver && currentMode !== 'timed') {
+                ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 0, PHYSICAL_WIDTH, PHYSICAL_HEIGHT);
+                ctx.font = "bold 32px monospace"; ctx.fillStyle = "#ffdd99"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText("GAME OVER", PHYSICAL_WIDTH/2, PHYSICAL_HEIGHT/2);
+            }
+        }
+        
+        // ----- Вспомогательные функции логики -----
+        function getRandomTile() { return Math.floor(Math.random() * BASE_TILE_TYPES); }
+        
+        function getMatchSet(boardGrid) {
+            const matches = new Set();
+            for (let r=0; r<ROWS; r++) {
+                let len=1;
+                for (let c=1; c<=COLS; c++) {
+                    if (c<COLS && boardGrid[r][c] === boardGrid[r][c-1] && boardGrid[r][c] < 6) len++;
+                    else { if (len >= MATCH_REQUIRED) for (let i=0; i<len; i++) matches.add(`${r},${c-len+i}`); len=1; }
+                }
+            }
+            for (let c=0; c<COLS; c++) {
+                let len=1;
+                for (let r=1; r<=ROWS; r++) {
+                    if (r<ROWS && boardGrid[r][c] === boardGrid[r-1][c] && boardGrid[r][c] < 6) len++;
+                    else { if (len >= MATCH_REQUIRED) for (let i=0; i<len; i++) matches.add(`${r-len+i},${c}`); len=1; }
+                }
+            }
+            return matches;
+        }
+        
+        function swapCells(boardGrid, r1,c1, r2,c2) { let t = boardGrid[r1][c1]; boardGrid[r1][c1] = boardGrid[r2][c2]; boardGrid[r2][c2] = t; }
+        
+        function applyGravityAndRefill(boardGrid, removeSet) {
+            const newBoard = boardGrid.map(r => [...r]);
+            const fallList = []; // для анимации: { fromRow, toRow, col, tileType }
+            for (let c=0; c<COLS; c++) {
+                const kept = [];
+                for (let r=0; r<ROWS; r++) {
+                    if (!removeSet.has(`${r},${c}`)) kept.push({ type: newBoard[r][c], row: r });
+                }
+                const missing = ROWS - kept.length;
+                const newTiles = Array(missing).fill().map(() => getRandomTile());
+                const finalCol = [...newTiles, ...kept.map(k => k.type)];
+                for (let r=0; r<ROWS; r++) newBoard[r][c] = finalCol[r];
+                // запоминаем падения
+                for (let i=0; i<kept.length; i++) {
+                    const oldRow = kept[i].row;
+                    const newRow = missing + i;
+                    if (oldRow !== newRow) fallList.push({ fromRow: oldRow, toRow: newRow, col: c, tileType: kept[i].type });
+                }
+                for (let i=0; i<missing; i++) {
+                    fallList.push({ fromRow: -1 - i, toRow: i, col: c, tileType: newTiles[i] });
+                }
+            }
+            return { newBoard, fallList };
+        }
+        
+        async function processMatchAndFallWithAnimation(addScore) {
+            let totalPoints = 0;
+            let cascadeMultiplier = 1;
+            let currentBoard = board.map(r => [...r]);
+            let maxIter = 30;
+            for (let iter=0; iter<maxIter; iter++) {
+                let matches = getMatchSet(currentBoard);
+                if (matches.size === 0) break;
+                if (addScore) {
+                    let stepPoints = Math.floor(matches.size * POINTS_PER_TILE * cascadeMultiplier);
+                    totalPoints += stepPoints;
+                }
+                const toRemove = matches;
+                for (let cell of toRemove) {
+                    let [r,c] = cell.split(',').map(Number);
+                    currentBoard[r][c] = -1;
+                }
+                const { newBoard, fallList } = applyGravityAndRefill(currentBoard, toRemove);
+                // анимируем падение
+                if (fallList.length) await startFallAnimation(fallList, 120);
+                currentBoard = newBoard;
+                cascadeMultiplier = Math.min(1.5, cascadeMultiplier + 0.05);
+            }
+            return { finalBoard: currentBoard, points: totalPoints };
+        }
+        
+        function startSwapAnimation(rowA, colA, rowB, colB, duration=100) {
+            return new Promise((resolve) => {
+                const start = performance.now();
+                const fromTile = board[rowA][colA];
+                const toTile = board[rowB][colB];
+                function step(now) {
+                    const elapsed = now - start;
+                    const progress = Math.min(1, elapsed / duration);
+                    animSwap = { fromRow: rowA, fromCol: colA, toRow: rowB, toCol: colB, fromTile, toTile, progress };
+                    render();
+                    if (progress < 1) requestAnimationFrame(step);
+                    else {
+                        animSwap = null;
+                        swapCells(board, rowA, colA, rowB, colB);
+                        render();
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+        
+        function startFallAnimation(fallList, duration=120) {
+            return new Promise((resolve) => {
+                if (!fallList.length) { resolve(); return; }
+                const start = performance.now();
+                const animItems = fallList.map(f => ({ ...f, progress: 0 }));
+                function step(now) {
+                    const elapsed = now - start;
+                    let allFinished = true;
+                    for (let a of animItems) {
+                        a.progress = Math.min(1, elapsed / duration);
+                        if (a.progress < 1) allFinished = false;
+                    }
+                    animFalls = animItems;
+                    render();
+                    if (!allFinished) requestAnimationFrame(step);
+                    else {
+                        animFalls = [];
+                        render();
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+        
+        async function tryMove(rowA, colA, rowB, colB) {
+            if (gameLock || isGameOver || isBlocked) { if(isBlocked) statusDiv.innerText = "Игра заблокирована котом!"; return; }
+            if (currentMode === 'moves' && movesLeft <= 0) { statusDiv.innerText = "Ходы кончились! Начните новую игру."; return; }
+            if (currentMode === 'timed' && timedRemaining <= 0) { statusDiv.innerText = "Время вышло!"; return; }
+            gameLock = true;
+            await startSwapAnimation(rowA, colA, rowB, colB);
+            let matchSet = getMatchSet(board);
+            if (matchSet.size === 0) {
+                await startSwapAnimation(rowA, colA, rowB, colB);
+                statusDiv.innerText = "❌ нет трёх в ряд!";
+                gameLock = false; selectedRow = null; selectedCol = null;
+                return;
+            }
+            if (currentMode === 'moves') {
+                movesLeft--;
+                updateMovesInfoDisplay();
+                updateExtraDisplay();
+                saveMovesProgress();
+            }
+            const { finalBoard, points } = await processMatchAndFallWithAnimation(true);
+            board = finalBoard;
+            currentScore += points;
+            scoreSpan.innerText = Math.floor(currentScore);
+            render();
+            statusDiv.innerText = points > 0 ? `🔥 +${Math.floor(points)} очков!` : "матч засчитан!";
+            if (currentMode === 'classic') saveClassicRecord();
+            if (currentMode === 'timed') saveTimedRecord();
+            if (currentMode === 'moves' && currentScore >= movesTarget && movesLevel < MAX_LEVEL) levelUp();
+            if (!hasAnyValidMove(board)) { isGameOver = true; statusDiv.innerText = "💀 НЕТ ХОДОВ! Игра окончена."; render(); }
+            gameLock = false; selectedRow = null; selectedCol = null;
+            saveCurrentGameState();
+        }
+        
+        function hasAnyValidMove(boardGrid) {
+            for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+                if (c+1<COLS) { swapCells(boardGrid, r,c, r,c+1); let ok = getMatchSet(boardGrid).size > 0; swapCells(boardGrid, r,c, r,c+1); if (ok) return true; }
+                if (r+1<ROWS) { swapCells(boardGrid, r,c, r+1,c); let ok = getMatchSet(boardGrid).size > 0; swapCells(boardGrid, r,c, r+1,c); if (ok) return true; }
+            }
+            return false;
+        }
+        
+        function generatePlayableBoard() {
+            for (let attempt=0; attempt<30; attempt++) {
+                let b = Array(ROWS).fill().map(() => Array(COLS).fill().map(()=>getRandomTile()));
+                if (hasAnyValidMove(b)) return b;
+            }
+            return Array(ROWS).fill().map(()=>Array(COLS).fill().map(()=>getRandomTile()));
+        }
+        
+        // ----- Отображение информации о режиме ходов (отдельный блок в modeSettings) -----
+        let movesInfoDiv = null;
+        
+        function createMovesInfoPanel() {
+            if (movesInfoDiv) return;
+            movesInfoDiv = document.createElement("div");
+            movesInfoDiv.id = "movesInfoPanel";
+            movesInfoDiv.className = "info-panel";
+            modeSettings.appendChild(movesInfoDiv);
+        }
+        
+        function updateMovesInfoDisplay() {
+            if (currentMode === 'moves') {
+                if (!movesInfoDiv) createMovesInfoPanel();
+                movesInfoDiv.innerHTML = `🎯 Уровень ${movesLevel} &nbsp;|&nbsp; Цель: ${movesTarget} очков &nbsp;|&nbsp; Ходы: ${movesLeft}`;
+                movesInfoDiv.style.display = "block";
+            } else {
+                if (movesInfoDiv) movesInfoDiv.style.display = "none";
+            }
+        }
+        
+        // Обновляем extraStat для режимов (для совместимости)
+        function updateExtraDisplay() {
+            if (currentMode === 'moves') {
+                extraLabel.innerText = "🎯 Уровень / Цель / Ходы";
+                extraValue.innerText = `${movesLevel} / ${movesTarget} / ${movesLeft}`;
+                extraStat.style.display = "flex";
+                updateMovesInfoDisplay();
+            } else if (currentMode === 'timed') {
+                extraLabel.innerText = "⏱ ОСТАЛОСЬ";
+                extraValue.innerText = `${timedRemaining} сек`;
+                extraStat.style.display = "flex";
+                if (movesInfoDiv) movesInfoDiv.style.display = "none";
+            } else {
+                extraStat.style.display = "none";
+                if (movesInfoDiv) movesInfoDiv.style.display = "none";
+            }
+        }
+        
+        function startNewMovesGame() {
+            movesLevel = 1;
+            const levelData = LEVELS[0];
+            movesTarget = levelData.targetScore;
+            movesLeft = levelData.moves;
+            currentScore = 0;
+            isGameOver = false;
+            selectedRow = null;
+            board = generatePlayableBoard();
+            render();
+            updateExtraDisplay();
+            scoreSpan.innerText = "0";
+            statusDiv.innerText = `🎯 Уровень ${movesLevel}: цель ${movesTarget} очков, ходов: ${movesLeft}`;
+            saveMovesProgress();
+        }
+        
+        function levelUp() {
+            if (movesLevel >= MAX_LEVEL) {
+                statusDiv.innerText = "Поздравляем! Вы прошли все уровни!";
+                isGameOver = true;
+                return;
+            }
+            movesLevel++;
+            const levelData = LEVELS[movesLevel-1];
+            movesTarget = levelData.targetScore;
+            movesLeft = levelData.moves;
+            currentScore = 0;
+            scoreSpan.innerText = "0";
+            statusDiv.innerText = `🎉 УРОВЕНЬ ${movesLevel}! Цель: ${movesTarget} очков, ходов: ${movesLeft}`;
+            updateExtraDisplay();
+            saveMovesProgress();
+            render();
+        }
+        
+        // ----- Рекорды и сохранения -----
+        function loadRecords() {
+            const savedClassic = localStorage.getItem("match3_classic_record");
+            if (savedClassic) classicRecord = parseInt(savedClassic) || 0;
+            const savedTimed = localStorage.getItem("match3_timed_records");
+            if (savedTimed) try { timedRecords = { ...timedRecords, ...JSON.parse(savedTimed) }; } catch(e) {}
+            updateRecordDisplay();
+        }
+        function saveClassicRecord() { if (currentScore > classicRecord) { classicRecord = currentScore; localStorage.setItem("match3_classic_record", classicRecord); statusDiv.innerText = `🏆 НОВЫЙ РЕКОРД! ${classicRecord} очков! 🏆`; updateRecordDisplay(); } }
+        function saveTimedRecord() { const rec = timedRecords[currentTimedChoice]||0; if (currentScore > rec) { timedRecords[currentTimedChoice] = currentScore; localStorage.setItem("match3_timed_records", JSON.stringify(timedRecords)); statusDiv.innerText = `🏆 НОВЫЙ РЕКОРД для ${currentTimedChoice} сек! ${currentScore} очков! 🏆`; updateRecordDisplay(); } }
+        function updateRecordDisplay() {
+            if (currentMode === 'classic') { recordLabel.innerText = "🏆 РЕКОРД (классика)"; recordValue.innerText = classicRecord; recordStat.style.display = "flex"; }
+            else if (currentMode === 'timed') { recordLabel.innerText = `🏆 РЕКОРД (${currentTimedChoice} сек)`; recordValue.innerText = timedRecords[currentTimedChoice] || 0; recordStat.style.display = "flex"; }
+            else { recordStat.style.display = "none"; }
+        }
+        function saveCurrentGameState() {
+            if (currentMode === 'classic') localStorage.setItem("match3_classic", JSON.stringify({ board, score: currentScore, isGameOver }));
+            else if (currentMode === 'timed') localStorage.setItem("match3_timed", JSON.stringify({ board, score: currentScore, isGameOver, timedRemaining, currentTimedChoice }));
+            else if (currentMode === 'moves') localStorage.setItem("match3_moves", JSON.stringify({ board, score: currentScore, isGameOver, movesLevel, movesLeft, movesTarget }));
+        }
+        function loadModeState(mode) {
+            if (mode === 'classic') {
+                const saved = localStorage.getItem("match3_classic");
+                if (saved) { const d=JSON.parse(saved); board=d.board; currentScore=d.score; isGameOver=d.isGameOver; scoreSpan.innerText=currentScore; render(); }
+                else { board=generatePlayableBoard(); currentScore=0; isGameOver=false; scoreSpan.innerText="0"; render(); }
+            } else if (mode === 'timed') {
+                const saved = localStorage.getItem("match3_timed");
+                if (saved) { const d=JSON.parse(saved); board=d.board; currentScore=d.score; isGameOver=d.isGameOver; timedRemaining=d.timedRemaining||0; currentTimedChoice=d.currentTimedChoice||30; scoreSpan.innerText=currentScore; render(); updateExtraDisplay();}
+                else { board=generatePlayableBoard(); currentScore=0; isGameOver=false; timedRemaining=0; currentTimedChoice=30; render(); updateExtraDisplay();}
+            } else if (mode === 'moves') {
+                const saved = localStorage.getItem("match3_moves");
+                if (saved) { const d=JSON.parse(saved); board=d.board; currentScore=d.score; isGameOver=d.isGameOver; movesLevel=d.movesLevel||1; movesLeft=d.movesLeft; movesTarget=d.movesTarget; scoreSpan.innerText=currentScore; render(); updateExtraDisplay(); }
+                else { startNewMovesGame(); return; }
+            }
+            selectedRow=null;
+        }
+        function saveMovesProgress() { localStorage.setItem("match3_moves", JSON.stringify({ board, score: currentScore, isGameOver, movesLevel, movesLeft, movesTarget })); }
+        
+        // ----- Таймер кота (15 минут активной игры в классике/ходах) -----
+        function startActiveTimer() {
+            if (activeTimer) clearInterval(activeTimer);
+            activeTimer = setInterval(() => {
+                if (document.hidden) return;
+                if (isBlocked) return;
+                if (lockUntil > Date.now()) return;
+                if (isGameOver) return;
+                if (currentMode === 'classic' || currentMode === 'moves') {
+                    activeTime++;
+                    if (activeTime >= CLASSIC_TIME_LIMIT && !isBlocked) {
+                        lockUntil = Date.now() + 30 * 60 * 1000;
+                        isBlocked = true;
+                        catOverlay.style.display = "flex";
+                        stopActiveTimer();
+                        saveBlockState();
+                    }
+                }
+            }, 1000);
+        }
+        function stopActiveTimer() { if (activeTimer) { clearInterval(activeTimer); activeTimer = null; } }
+        function saveBlockState() { localStorage.setItem("match3_block", JSON.stringify({ lockUntil, isBlocked, activeTime })); }
+        function loadBlockState() {
+            const saved = localStorage.getItem("match3_block");
+            if (!saved) { lockUntil=0; isBlocked=false; activeTime=0; return; }
+            try {
+                const data = JSON.parse(saved);
+                lockUntil = data.lockUntil || 0;
+                isBlocked = data.isBlocked || false;
+                activeTime = data.activeTime || 0;
+                if (lockUntil <= Date.now()) { isBlocked = false; activeTime = 0; lockUntil = 0; saveBlockState(); }
+                if (isBlocked) catOverlay.style.display = "flex";
+                else catOverlay.style.display = "none";
+            } catch(e) { lockUntil=0; isBlocked=false; activeTime=0; }
+        }
+        function unlockByPassword() { isBlocked = false; lockUntil = 0; activeTime = 0; catOverlay.style.display = "none"; saveBlockState(); stopActiveTimer(); startActiveTimer(); statusDiv.innerText = "🔓 Разблокировано! Таймер сброшен."; }
+        
+        // ----- Обработка кликов -----
+        function getTileFromEvent(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = PHYSICAL_WIDTH / rect.width, scaleY = PHYSICAL_HEIGHT / rect.height;
+            let cx, cy;
+            if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+            else { cx = e.clientX; cy = e.clientY; }
+            const canvasX = (cx - rect.left) * scaleX, canvasY = (cy - rect.top) * scaleY;
+            if (canvasX<0||canvasY<0) return null;
+            const col = Math.floor(canvasX/cellW), row = Math.floor(canvasY/cellH);
+            if(row>=0 && row<ROWS && col>=0 && col<COLS) return {row,col};
+            return null;
+        }
+        function onTileClick(row, col) {
+            if (gameLock || isGameOver || isBlocked) { if(isBlocked) statusDiv.innerText="Игра заблокирована котом!"; return; }
+            if (currentMode === 'timed' && timedRemaining <=0) { statusDiv.innerText="Время вышло!"; return; }
+            if (currentMode === 'moves' && movesLeft <=0 && !isGameOver) { statusDiv.innerText="Ходы кончились!"; return; }
+            if (selectedRow === null) { selectedRow=row; selectedCol=col; render(); statusDiv.innerText=`выбрана фигура (${row+1},${col+1})`; return; }
+            const sRow=selectedRow, sCol=selectedCol;
+            if (Math.abs(sRow-row)+Math.abs(sCol-col)!==1) { selectedRow=row; selectedCol=col; render(); statusDiv.innerText=`выбрана новая фигура (${row+1},${col+1})`; return; }
+            tryMove(sRow, sCol, row, col);
+        }
+        function handleCanvasEvent(e) { e.preventDefault(); if(gameLock||isGameOver) return; const pos=getTileFromEvent(e); if(pos) onTileClick(pos.row, pos.col); }
+        
+        async function newGame() {
+            if(gameLock) return;
+            if((currentMode==='classic'||currentMode==='moves') && isBlocked){ statusDiv.innerText="Сначала разблокируйте игру!"; return;}
+            if(currentMode==='classic'){ board=generatePlayableBoard(); currentScore=0; isGameOver=false; scoreSpan.innerText="0"; render(); statusDiv.innerText="🎉 Новая игра!"; localStorage.removeItem("match3_classic"); saveCurrentGameState();}
+            else if(currentMode==='timed'){
+                const sel=document.getElementById("timedSelect"); if(sel) currentTimedChoice=parseInt(sel.value);
+                timedRemaining=currentTimedChoice; board=generatePlayableBoard(); currentScore=0; isGameOver=false; scoreSpan.innerText="0"; render();
+                if(timedTimer) clearInterval(timedTimer);
+                timedTimer=setInterval(()=>{ if(currentMode!=='timed')return; if(timedRemaining<=0){ clearInterval(timedTimer); timedTimer=null; isGameOver=true; statusDiv.innerText="⏰ Время вышло!"; render(); saveTimedRecord(); updateRecordDisplay(); return; } timedRemaining--; updateExtraDisplay(); },1000);
+                statusDiv.innerText=`⏱ Игра на время ${timedRemaining} сек!`; saveCurrentGameState(); updateRecordDisplay();
+            } else if(currentMode==='moves'){ startNewMovesGame(); saveMovesProgress();}
+            selectedRow=null;
+        }
+        async function shuffleBoard(){ if(gameLock||isGameOver||isBlocked){statusDiv.innerText="Нельзя сейчас";return;} gameLock=true; board=generatePlayableBoard(); render(); if(!hasAnyValidMove(board)) isGameOver=true; gameLock=false; selectedRow=null; saveCurrentGameState(); statusDiv.innerText="♻️ Доска перемешана!";}
+        
+        function switchMode(mode){
+            if(gameLock) return;
+            if(currentMode==='timed' && timedTimer){ clearInterval(timedTimer); timedTimer=null; }
+            currentMode=mode;
+            modeClassicBtn.classList.remove("active"); modeTimedBtn.classList.remove("active"); modeMovesBtn.classList.remove("active");
+            if(mode==='classic') modeClassicBtn.classList.add("active");
+            else if(mode==='timed') modeTimedBtn.classList.add("active");
+            else modeMovesBtn.classList.add("active");
+            if(mode==='timed'){
+                modeSettings.innerHTML=`<select id="timedSelect"><option value="30">30 сек</option><option value="60">1 мин</option><option value="120">2 мин</option><option value="300">5 мин</option></select>`;
+                if (movesInfoDiv) movesInfoDiv.remove(); movesInfoDiv = null;
+                const sel=document.getElementById("timedSelect"); if(sel) sel.value=currentTimedChoice;
+                updateRecordDisplay(); updateExtraDisplay();
+            } else if(mode==='moves'){
+                modeSettings.innerHTML = "";
+                createMovesInfoPanel();
+                updateExtraDisplay();
+                updateRecordDisplay();
+            } else {
+                modeSettings.innerHTML = "";
+                if (movesInfoDiv) movesInfoDiv.remove();
+                movesInfoDiv = null;
+                updateExtraDisplay();
+                updateRecordDisplay();
+            }
+            loadModeState(mode);
+            updateExtraDisplay(); updateRecordDisplay();
+            statusDiv.innerText=`✨ Режим ${mode==='classic'?'Классический':(mode==='timed'?'На время':'На ходы (уровни)')} ✨`;
+        }
+        
+        canvas.addEventListener("mousedown", handleCanvasEvent); canvas.addEventListener("touchstart", handleCanvasEvent, {passive:false});
+        newGameBtn.addEventListener("click",newGame); shuffleBtn.addEventListener("click",shuffleBoard);
+        modeClassicBtn.addEventListener("click",()=>switchMode('classic'));
+        modeTimedBtn.addEventListener("click",()=>switchMode('timed'));
+        modeMovesBtn.addEventListener("click",()=>switchMode('moves'));
+        secretBtn.addEventListener("click",()=>adminModal.style.display="flex");
+        closeAdminBtn.addEventListener("click",()=>adminModal.style.display="none");
+        unlockBtn.addEventListener("click",()=>{ if(adminPassword.value==="9999"){ unlockByPassword(); adminModal.style.display="none"; adminPassword.value="";} else statusDiv.innerText="❌ Неверный пароль!"; });
+        testCatBtn.addEventListener("click",()=>{ adminModal.style.display="none"; catOverlay.style.display="flex"; isBlocked=true; lockUntil=Date.now()+30*60*1000; saveBlockState(); });
+        resetProgressBtn.addEventListener("click",()=>{ if(confirm("Сбросить весь прогресс?")){ localStorage.clear(); stopActiveTimer(); isBlocked=false; lockUntil=0; activeTime=0; catOverlay.style.display="none"; classicRecord=0; timedRecords={30:0,60:0,120:0,300:0}; switchMode('classic'); startActiveTimer(); statusDiv.innerText="Прогресс сброшен."; adminModal.style.display="none"; } });
+        adminPassword.addEventListener("input",(e)=>e.target.value=e.target.value.replace(/\D/g,'').slice(0,4));
+        let tooltipTimeout=null;
+        catOverlay.addEventListener("click",(e)=>{ catClickCount++; if(catClickCount>=3){ catClickCount=0; meowSound.play().catch(e=>{}); const msgs=["Мяу-мяу!","Мур-мур...","Мяу!","Муррр"]; catTooltip.innerText=msgs[Math.floor(Math.random()*msgs.length)]; catTooltip.style.opacity="1"; if(tooltipTimeout) clearTimeout(tooltipTimeout); tooltipTimeout=setTimeout(()=>catTooltip.style.opacity="0",1000); } });
+        window.addEventListener("beforeunload",()=>{ saveCurrentGameState(); saveBlockState(); });
+        document.addEventListener("visibilitychange",()=>{ if(document.hidden) saveBlockState(); else loadBlockState(); });
+        loadRecords(); loadBlockState(); startActiveTimer(); switchMode('classic');
+    })();
+</script>
+</body>
+</html>
