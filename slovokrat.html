@@ -380,10 +380,21 @@ function clearPath(){ S.sel=[]; $('pathLine').setAttribute('points','');
 
 /* ═══ ВВОД ═══ */
 let dragging=false, pid=null;
+// ближайшая плитка к точке — по центрам, а не elementFromPoint:
+// при движении по диагонали курсор на стыке не цепляет соседей
 function tileAt(x,y){
-  const el=document.elementFromPoint(x,y);
-  const t=el&&el.closest?el.closest('.tile'):null;
-  return t?+t.dataset.i:-1;
+  let best=-1,bd=1e9;
+  const tiles=boardEl.children;
+  for(let i=0;i<tiles.length;i++){
+    const r=tiles[i].getBoundingClientRect();
+    const cx=r.left+r.width/2-x, cy=r.top+r.height/2-y;
+    const d=cx*cx+cy*cy;
+    if(d<bd){bd=d;best=i;}
+  }
+  // принимаем только если точка внутри ~75% радиуса плитки
+  const br=boardEl.children[best]&&boardEl.children[best].getBoundingClientRect();
+  if(br&&(Math.abs(x-(br.left+br.width/2))>br.width*.75||Math.abs(y-(br.top+br.height/2))>br.height*.75))return -1;
+  return best;
 }
 function adjacent(a,b){
   const ra=Math.floor(a/S.cols), ca=a%S.cols, rb=Math.floor(b/S.cols), cb=b%S.cols;
@@ -568,11 +579,10 @@ function showHint(){
   const valid=[];
   for(const w of DICT){ if(S.found.has(w))continue; if(wordFits(w,{...counts}))valid.push(w); }
   if(!valid.length){toast('Слов на поле не осталось','bad');return;}
-  // multiset-проверка не гарантирует путь — пробуем несколько слов
-  for(let t=0;t<12;t++){ const p=findPath(pick(valid)); if(p){drawGhost(p);break;} }
-  S.hintCd=15;
-  toast('Подсказка показана','good');
-  AU.click();
+  // multiset-проверка не гарантирует путь — пробуем больше слов
+  for(let t=0;t<40;t++){ const p=findPath(pick(valid)); if(p){
+    drawGhost(p); S.hintCd=15; toast('Подсказка показана','good'); AU.click(); return; } }
+  toast('Не нашлось слова с путём — попробуй ещё','bad');
 }
 function drawGhost(path,word){
   const pts=path.map(tileCenter);
