@@ -321,6 +321,19 @@ function wordFits(word, counts){
   for(const ch of word){ if((counts[ch]||0)<1)return false; counts[ch]--; }
   return true;
 }
+// все слова поля с реальным путём (как у игрока): буквы + маршрут по соседям
+function computeBoardWords(){
+  const counts=boardCounts(); const res=[];
+  for(const w of DICT){
+    if(!wordFits(w,{...counts}))continue;
+    if(findPath(w))res.push(w);
+  }
+  return res.sort((a,b)=>b.length-a.length||a.localeCompare(b,'ru'));
+}
+function boardWords(){
+  if(!S._bw||S._bwBoard!==S.board){S._bw=computeBoardWords();S._bwBoard=S.board;}
+  return S._bw;
+}
 function findValidWords(){
   const counts=boardCounts(); const res=[];
   for(const w of DICT){
@@ -535,26 +548,20 @@ function checkLevel(){
 }
 // счётчик слов на поле: найдено / всего доступных
 function updateWordCount(){
-  const rest=findValidWords().length;
-  $('wordCount').textContent='СЛОВА '+S.found.size+'/'+(S.found.size+rest);
+  const all=boardWords();
+  const found=all.filter(w=>S.found.has(w)).length;
+  $('wordCount').textContent='СЛОВА '+found+'/'+all.length;
 }
 function showLevelOverlay(){
-  const rest=findAllBoardWords();
-  const total=S.found.size+rest.filter(w=>!S.found.has(w)).length;
+  const all=boardWords();
+  const found=all.filter(w=>S.found.has(w)).length;
   $('lvTitle').textContent=ROMAN_G(S.prov);
-  $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' · слов найдено: '+S.found.size+' из '+total;
+  $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' · слов найдено: '+found+' из '+all.length;
   $('ovLevel').classList.remove('hidden');
-}
-// все слова, которые можно составить из букв поля (включая найденные)
-function findAllBoardWords(){
-  const counts=boardCounts(); const res=[];
-  for(const w of DICT) if(wordFits(w,{...counts})) res.push(w);
-  return res;
 }
 function renderLevelWords(){
   const box=$('lvWords'); box.innerHTML='';
-  const all=findAllBoardWords().sort((a,b)=>b.length-a.length||a.localeCompare(b,'ru'));
-  all.forEach(w=>{
+  boardWords().forEach(w=>{
     const d=document.createElement('div');
     d.className='wchip '+(S.found.has(w)?'foundw':'missed');
     d.textContent=w.toUpperCase(); box.appendChild(d);
