@@ -78,8 +78,9 @@ header>*{pointer-events:auto}
 #progress{height:8px;border-radius:5px;background:var(--track);border:1px solid var(--line);overflow:hidden;margin-bottom:8px}
 #progressFill{height:100%;width:0%;border-radius:5px;background:linear-gradient(90deg,var(--gold2),var(--gold));
   box-shadow:0 0 8px var(--gold);transition:width .4s}
-#progTxt{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);letter-spacing:.1em;
+#progTxt{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:var(--dim);letter-spacing:.1em;
   font-family:var(--fd);margin-bottom:8px}
+#wordCount{color:var(--gold);white-space:nowrap}
 #words{display:flex;flex-wrap:wrap;gap:6px;max-height:74px;overflow-y:auto;scrollbar-width:thin;
   scrollbar-color:var(--line) transparent;padding:2px}
 #words::-webkit-scrollbar{width:5px}
@@ -132,6 +133,11 @@ header>*{pointer-events:auto}
 .btn.ghost:hover{color:var(--ink);border-color:var(--gold);box-shadow:none}
 .best-line{font-family:var(--fd);font-size:11px;letter-spacing:.15em;color:var(--dim)}
 .best-line b{color:var(--gold)}
+.lv-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#lvWords{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:300px;overflow-y:auto;
+  width:100%;padding:4px;scrollbar-width:thin}
+#lvWords .wchip.missed{opacity:.45}
+#lvWords .wchip.foundw{border-color:var(--green);color:var(--green)}
 @media (max-width:520px){
   header{padding:8px 10px;gap:6px}
   .logo{font-size:14px}
@@ -180,7 +186,7 @@ header>*{pointer-events:auto}
 <div id="toast"></div>
 
 <div id="bottom">
-  <div id="progTxt"><span id="progLabel">до покорения провинции</span><span id="progScore">0 / 300</span></div>
+  <div id="progTxt"><span id="progLabel">до покорения провинции</span><span id="wordCount"></span><span id="progScore">0 / 300</span></div>
   <div id="progress"><div id="progressFill"></div></div>
   <div id="words"></div>
 </div>
@@ -205,6 +211,21 @@ header>*{pointer-events:auto}
     <button class="btn" id="btnContinue" style="display:none;margin-top:10px">ПРОДОЛЖИТЬ</button>
     <button class="btn" id="btnPlay">ИГРАТЬ</button>
     <div class="best-line">рекорд: <b id="bestStart">0</b></div>
+  </div>
+</div>
+
+<!-- экран завершения провинции -->
+<div class="overlay hidden" id="ovLevel">
+  <div class="panel">
+    <div class="ov-kicker">провинция покорена</div>
+    <div class="ov-title" id="lvTitle">I</div>
+    <p class="ov-sub" id="lvStats"></p>
+    <div class="lv-btns">
+      <button class="btn" id="btnNextProv">ДАЛЬШЕ</button>
+      <button class="btn ghost" id="btnShowWords">СЛОВА ПРОВИНЦИИ</button>
+    </div>
+    <div id="lvWords" class="hidden"></div>
+    <button class="btn ghost hidden" id="btnBack">НАЗАД</button>
   </div>
 </div>
 
@@ -318,6 +339,9 @@ function genBoard(){
     for(const w of DICT){ if(wordFits(w,{...counts})) valid.push(w); }
     const long=valid.filter(w=>w.length>=5);
     if(valid.length>=10 && long.length>=3){
+      // проверка проходимости: суммарный потенциал очков должен перекрывать цель
+      let pot=0; for(const w of valid)pot+=wordScore(w);
+      if(pot<S.target*1.6)continue;
       // секрет — самое длинное слово (при равенстве — случайное из топов)
       const maxLen=Math.max(...valid.map(w=>w.length));
       const tops=valid.filter(w=>w.length===maxLen);
@@ -458,7 +482,7 @@ function tryWord(word,selIdx){
     const bonus=150;
     addScore(bonus,'СЕКРЕТ +'+bonus);
     toast('СЕКРЕТНАЯ НАХОДКА! «'+w.toUpperCase()+'» +'+bonus,'gold');
-    AU.secret(); addWordChip(w,true); flashTiles(selIdx);
+    AU.secret(); addWordChip(w,true); flashTiles(selIdx); updateWordCount();
     checkLevel(); return;
   }
   // обычное слово
@@ -468,7 +492,7 @@ function tryWord(word,selIdx){
   const gain=Math.round(wordScore(w)*mult);
   addScore(gain,'+'+gain+(S.combo>1?' · серия ×'+(1+Math.min(S.combo-1,8)*0.25).toFixed(2).replace(/\.?0+$/,''):''));
   AU.good(w.length);
-  updateCombo(); addWordChip(w,false);
+  updateCombo(); addWordChip(w,false); updateWordCount();
   flashTiles(selIdx);
   checkLevel();
 }
@@ -486,7 +510,7 @@ function resumeGame(p){
   $('provNum').textContent=ROMAN_G(S.prov);
   $('scoreNum').textContent=S.score.toLocaleString('ru-RU');
   $('ovStart').classList.add('hidden');
-  renderBoard(); renderWords(); updateProgress(); updateCombo();
+  renderBoard(); renderWords(); updateProgress(); updateCombo(); updateWordCount();
   S.mode='play';
   toast('Игра продолжена — провинция '+ROMAN_G(S.prov),'gold');
 }
@@ -506,9 +530,46 @@ function checkLevel(){
     S.mode='levelup';
     AU.level();
     toast('ПРОВИНЦИЯ '+ROMAN_G(S.prov)+' ПОКОРЕНА!','gold');
-    setTimeout(()=>{ if(S.mode==='levelup') nextProvince(); },1600);
+    showLevelOverlay();
   }
 }
+// счётчик слов на поле: найдено / всего доступных
+function updateWordCount(){
+  const rest=findValidWords().length;
+  $('wordCount').textContent='СЛОВА '+S.found.size+'/'+(S.found.size+rest);
+}
+function showLevelOverlay(){
+  const rest=findAllBoardWords();
+  const total=S.found.size+rest.filter(w=>!S.found.has(w)).length;
+  $('lvTitle').textContent=ROMAN_G(S.prov);
+  $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' · слов найдено: '+S.found.size+' из '+total;
+  $('ovLevel').classList.remove('hidden');
+}
+// все слова, которые можно составить из букв поля (включая найденные)
+function findAllBoardWords(){
+  const counts=boardCounts(); const res=[];
+  for(const w of DICT) if(wordFits(w,{...counts})) res.push(w);
+  return res;
+}
+function renderLevelWords(){
+  const box=$('lvWords'); box.innerHTML='';
+  const all=findAllBoardWords().sort((a,b)=>b.length-a.length||a.localeCompare(b,'ru'));
+  all.forEach(w=>{
+    const d=document.createElement('div');
+    d.className='wchip '+(S.found.has(w)?'foundw':'missed');
+    d.textContent=w.toUpperCase(); box.appendChild(d);
+  });
+}
+$('btnNextProv').addEventListener('click',()=>{AU.click();$('ovLevel').classList.add('hidden');nextProvince();});
+$('btnShowWords').addEventListener('click',()=>{
+  AU.click(); renderLevelWords();
+  $('lvWords').classList.remove('hidden'); $('btnBack').classList.remove('hidden');
+  $('btnShowWords').classList.add('hidden');
+});
+$('btnBack').addEventListener('click',()=>{
+  AU.click(); $('lvWords').classList.add('hidden'); $('btnBack').classList.add('hidden');
+  $('btnShowWords').classList.remove('hidden');
+});
 function nextProvince(){
   S.prov++;
   S.target=200+(S.prov-1)*150;
@@ -518,7 +579,7 @@ function nextProvince(){
   renderWords();
   genAndRender();
   S.mode='play';
-  updateProgress(); updateCombo(); saveProgress();
+  updateProgress(); updateCombo(); saveProgress(); updateWordCount();
   toast('Провинция '+ROMAN_G(S.prov)+' — новая земля','gold');
 }
 function genAndRender(){
@@ -639,7 +700,7 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyM'){S.muted=!S.muted;store.set('muted',S.muted);updateSoundUI();}
 });
 $('btnNew').addEventListener('click',()=>{AU.ensure();AU.click();newGame();});
-$('btnMenu').addEventListener('click',()=>{AU.click();S.mode='menu';$('ovStart').classList.remove('hidden');
+$('btnMenu').addEventListener('click',()=>{AU.click();S.mode='menu';$('ovLevel').classList.add('hidden');$('ovStart').classList.remove('hidden');
   $('bestStart').textContent=S.best.toLocaleString('ru-RU');});
 $('btnHint').addEventListener('click',showHint);
 /* тема: светлая по умолчанию, переключатель в шапке */
@@ -666,7 +727,7 @@ function newGame(){
   S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0; S.autoDone=false; S.autoT=0;
   $('provNum').textContent='I'; $('scoreNum').textContent='0';
   $('bestStart').textContent=S.best.toLocaleString('ru-RU');
-  genAndRender(); updateProgress(); updateCombo();
+  genAndRender(); updateProgress(); updateCombo(); updateWordCount();
   S.mode='play';
   toast('Провинция I — да будет слово!','gold');
 }
