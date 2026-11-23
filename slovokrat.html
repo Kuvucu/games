@@ -380,21 +380,18 @@ function clearPath(){ S.sel=[]; $('pathLine').setAttribute('points','');
 
 /* ═══ ВВОД ═══ */
 let dragging=false, pid=null;
-// ближайшая плитка к точке — по центрам, а не elementFromPoint:
-// при движении по диагонали курсор на стыке не цепляет соседей
+// плитка по координатам сетки: всё поле — ячейки включая зазоры,
+// мёртвых зон нет, диагональ проходит напрямую в нужную плитку
 function tileAt(x,y){
-  let best=-1,bd=1e9;
-  const tiles=boardEl.children;
-  for(let i=0;i<tiles.length;i++){
-    const r=tiles[i].getBoundingClientRect();
-    const cx=r.left+r.width/2-x, cy=r.top+r.height/2-y;
-    const d=cx*cx+cy*cy;
-    if(d<bd){bd=d;best=i;}
-  }
-  // принимаем только если точка внутри ~75% радиуса плитки
-  const br=boardEl.children[best]&&boardEl.children[best].getBoundingClientRect();
-  if(br&&(Math.abs(x-(br.left+br.width/2))>br.width*.75||Math.abs(y-(br.top+br.height/2))>br.height*.75))return -1;
-  return best;
+  const r=boardEl.getBoundingClientRect();
+  const gap=7;
+  const cw=(r.width-(S.cols-1)*gap)/S.cols;
+  const ch=(r.height-(S.rows-1)*gap)/S.rows;
+  if(cw<=0||ch<=0)return -1;
+  const col=Math.floor((x-r.left)/(cw+gap));
+  const row=Math.floor((y-r.top)/(ch+gap));
+  if(col<0||col>=S.cols||row<0||row>=S.rows)return -1;
+  return row*S.cols+col;
 }
 function adjacent(a,b){
   const ra=Math.floor(a/S.cols), ca=a%S.cols, rb=Math.floor(b/S.cols), cb=b%S.cols;
