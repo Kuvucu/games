@@ -314,6 +314,7 @@ const S = {
   theme:store.get('theme','light'),
   best:store.get('best',0),
   hintT:0, hintCd:0,
+  bonus:false,             // бонус за провинцию уже начислен (защита от повторного при продолжении)
   lastT:0
 };
 
@@ -559,7 +560,7 @@ function onMove(e){
   for(const ev of evs){
     const x=ev.clientX,y=ev.clientY;
     const dx=x-lastPX, dy=y-lastPY, d=Math.hypot(dx,dy);
-    const step=Math.max(8,tilePx*0.3);
+    const step=Math.max(8,tilePx*0.15);   // чем плотнее сэмплы — тем меньше быстрый взмах «перепрыгивает» плитки
     const n=Math.max(1,Math.ceil(d/step));
     for(let k=1;k<=n;k++) tryAddTile(tileAt(lastPX+dx*k/n,lastPY+dy*k/n,false));
     lastPX=x; lastPY=y;
@@ -624,6 +625,7 @@ function resumeGame(p){
   S.board=p.board.map(ch=>({ch})); S.secret=p.secret||'';
   S.found=new Set(p.found||[]); S.secretFound=!!p.secretFound;
   S.combo=0; S.maxCombo=0; S.autoDone=true; S.autoT=0; S.sel=[];
+  S.bonus=p.score>=p.target;                // если провинция уже была покорена — бонус учтён в сохранённых очках
   $('provNum').textContent=ROMAN_G(S.prov);
   $('scoreNum').textContent=S.score.toLocaleString('ru-RU');
   $('ovStart').classList.add('hidden');
@@ -645,8 +647,9 @@ function updateProgress(){
 function checkLevel(){
   if(S.mode==='play'&&S.score>=S.target){
     S.mode='levelup';
+    if(!S.bonus){S.bonus=true;addScore(200);}  // бонус за покорение провинции
     AU.level();
-    toast('ПРОВИНЦИЯ '+ROMAN_G(S.prov)+' ПОКОРЕНА!','gold');
+    toast('ПРОВИНЦИЯ '+ROMAN_G(S.prov)+' ПОКОРЕНА! +200','gold');
     showLevelOverlay();
   }
 }
@@ -661,7 +664,7 @@ function showLevelOverlay(){
   const all=boardWords();
   const found=all.filter(w=>S.found.has(w)).length;
   $('lvTitle').textContent=ROMAN_G(S.prov);
-  $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' · слов найдено: '+found+' из '+all.length;
+  $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' (вкл. бонус +200) · слов найдено: '+found+' из '+all.length;
   $('ovLevel').classList.remove('hidden');
 }
 // ПК: все слова поля справа — найденные зелёные, секрет до находки скрыт точками
@@ -710,6 +713,7 @@ function nextProvince(){
   S.prov++;
   S.target=200+(S.prov-1)*150;
   S.score=0;                               // очки — внутри провинции, иначе старая сумма мгновенно «проходит» новый уровень
+  S.bonus=false;
   $('scoreNum').textContent='0';
   S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0;
   S.sel=[]; clearPath();
@@ -873,7 +877,7 @@ function newGame(){
   // стартуем с самой дальней провинции — прогресс не сгорает при обновлениях
   S.prov=Math.max(1,store.get('reached',1)||1);
   S.score=0; S.target=S.prov===1?300:200+(S.prov-1)*150;
-  S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0; S.autoDone=false; S.autoT=0;
+  S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0; S.bonus=false; S.autoDone=false; S.autoT=0;
   $('provNum').textContent=ROMAN_G(S.prov); $('scoreNum').textContent='0';
   $('bestStart').textContent=S.best.toLocaleString('ru-RU');
   genAndRender(); updateProgress(); updateCombo();
