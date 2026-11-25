@@ -266,7 +266,7 @@ const S = {
   mode:'menu',            // menu | play
   prov:1, score:0, target:300,
   board:[],              // [{ch, rare}]
-  cols:5, rows:4,
+  cols:5, rows:5,
   sel:[],                // индексы выбранных
   found:new Set(),       // найденные слова провинции
   secret:'', secretFound:false,
@@ -342,12 +342,45 @@ function findValidWords(){
   }
   return res;
 }
+// слова для «посадки» на поле: средние по длине, встречаются часто
+const DICT_PLANT = DICT.filter(w=>w.length>=4&&w.length<=7);
+// размещает слово по свободным соседним клеткам (как маршрут пальцем)
+function plantWord(cells,w){
+  const N=S.cols*S.rows;
+  const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  for(let t=0;t<40;t++){
+    const start=Math.floor(Math.random()*N);
+    if(cells[start]&&cells[start]!==w[0])continue;
+    const path=[start], used=new Set([start]);
+    function dfs(i,d){
+      if(d===w.length)return true;
+      const r=Math.floor(i/S.cols),c=i%S.cols;
+      for(const[dr,dc]of dirs){
+        const nr=r+dr,nc=c+dc;
+        if(nr<0||nr>=S.rows||nc<0||nc>=S.cols)continue;
+        const ni=nr*S.cols+nc;
+        if(used.has(ni))continue;
+        if(cells[ni]&&cells[ni]!==w[d])continue;
+        used.add(ni);path.push(ni);
+        if(dfs(ni,d+1))return true;
+        path.pop();used.delete(ni);
+      }
+      return false;
+    }
+    if(dfs(start,1)){ path.forEach((cell,k)=>{cells[cell]=w[k];}); return true; }
+  }
+  return false;
+}
 function genBoard(){
   const N=S.cols*S.rows;
   let bestValid=[],bestPot=-1,bestBoard=null;
   for(let attempt=0;attempt<40;attempt++){
-    S.board=[];
-    for(let i=0;i<N;i++) S.board.push({ch:pickLetter()});
+    // «посадка» 2–4 слов, остальное — случайные буквы с весами частот
+    const cells=new Array(N).fill(null);
+    const plants=2+Math.floor(Math.random()*3);
+    for(let k=0;k<plants;k++) plantWord(cells,pick(DICT_PLANT));
+    for(let i=0;i<N;i++) if(!cells[i]) cells[i]=pickLetter();
+    S.board=cells.map(ch=>({ch}));
     // считаем валидные слова на поле
     const counts=boardCounts(); const valid=[];
     for(const w of DICT){ if(wordFits(w,{...counts})) valid.push(w); }
