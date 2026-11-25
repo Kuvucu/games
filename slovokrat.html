@@ -98,7 +98,7 @@ header>*{pointer-events:auto}
 #autoWord{position:fixed;top:102px;left:50%;transform:translateX(-50%);z-index:25;font-family:var(--fd);
   font-weight:700;font-size:clamp(17px,4vw,24px);color:var(--cyan);letter-spacing:.18em;
   text-shadow:var(--toastSh);opacity:0;transition:opacity .3s;pointer-events:none}
-#toast{position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:40;font-family:var(--fd);
+#toast{position:fixed;left:50%;bottom:calc(var(--stagePad,118px) + 14px);transform:translateX(-50%);z-index:40;font-family:var(--fd);
   font-size:clamp(15px,3.6vw,22px);letter-spacing:.1em;text-align:center;pointer-events:none;
   opacity:0;transition:opacity .3s;text-shadow:var(--toastSh)}
 #toast.on{opacity:1}
@@ -155,15 +155,24 @@ header>*{pointer-events:auto}
   #stage{padding-top:44px;gap:4px}
   #combo{top:46px}
   #autoWord{top:78px}
-  #toast{top:12%}
+  #toast{bottom:calc(var(--stagePad,100px) + 30px)}
   #words{max-height:56px}
 }
-/* на ПК список слов провинции — колонкой справа по центру экрана */
+/* на ПК полный список слов поля — колонкой справа, найденные подсвечены */
+#wordBank{display:none}
 @media (min-width:960px){
-  #words{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:19;
-    width:212px;max-height:72vh;flex-direction:column;align-items:stretch;
+  #stage{padding-right:238px}
+  #wordBank{display:block;position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:19;
+    width:212px;max-height:70vh;overflow-y:auto;
     background:linear-gradient(180deg,color-mix(in srgb,var(--bg0) 94%,transparent),color-mix(in srgb,var(--bg0) 78%,transparent));
-    border:1px solid var(--line);border-radius:14px;padding:10px}
+    border:1px solid var(--line);border-radius:14px;padding:10px;
+    scrollbar-width:thin}
+  #wordBank .wchip{display:block;width:100%;text-align:left;margin-bottom:4px;opacity:.5;
+    cursor:pointer;transition:opacity .15s,border-color .15s}
+  #wordBank .wchip:hover{opacity:1;border-color:var(--gold)}
+  #wordBank .wchip.secret{opacity:.9;border-color:var(--gold);color:var(--gold)}
+  #wordBank .wchip.foundw{opacity:1;border-color:var(--green);color:var(--green)}
+  #wordBank .wchip.secret.foundw{border-color:var(--green);color:var(--green)}
 }
 </style>
 </head>
@@ -203,6 +212,7 @@ header>*{pointer-events:auto}
     <button class="abtn" id="btnNew">НОВАЯ ИГРА</button>
   </div>
 </div>
+<div id="wordBank"></div>
 
 <!-- стартовый экран -->
 <div class="overlay" id="ovStart">
@@ -456,8 +466,8 @@ function sizeBoard(){
   syncChrome();
   // реальное свободное место сцены: ширина минус поля, высота минус header/панель
   const cs=getComputedStyle(stageEl);
-  const availW=Math.min(stageEl.clientWidth-20,470);
-  const availH=stageEl.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-12;
+  const availW=Math.min(stageEl.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)-16,620);
+  const availH=stageEl.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-64;
   const tileW=Math.floor((availW-(S.cols-1)*7)/S.cols);
   const tileH=Math.floor((availH-(S.rows-1)*7)/S.rows);
   tilePx=Math.max(24,Math.min(tileW,tileH));
@@ -584,6 +594,7 @@ function tryWord(word,selIdx){
   // секрет провинции?
   if(S.secret && w===S.secret && !S.secretFound){
     S.secretFound=true;
+    S.found.add(w);                        // секрет — тоже «найден», иначе подсказка будет его предлагать снова
     const bonus=150;
     addScore(bonus,'СЕКРЕТ +'+bonus);
     toast('СЕКРЕТНАЯ НАХОДКА! «'+w.toUpperCase()+'» +'+bonus,'gold');
@@ -632,7 +643,7 @@ function updateProgress(){
   $('progScore').textContent=S.score.toLocaleString('ru-RU')+' / '+S.target.toLocaleString('ru-RU');
 }
 function checkLevel(){
-  if(S.score>=S.target){
+  if(S.mode==='play'&&S.score>=S.target){
     S.mode='levelup';
     AU.level();
     toast('ПРОВИНЦИЯ '+ROMAN_G(S.prov)+' ПОКОРЕНА!','gold');
@@ -644,6 +655,7 @@ function updateWordCount(){
   const all=boardWords();
   const found=all.filter(w=>S.found.has(w)).length;
   $('wordCount').textContent='СЛОВА '+found+'/'+all.length;
+  renderWordBank();
 }
 function showLevelOverlay(){
   const all=boardWords();
@@ -652,6 +664,24 @@ function showLevelOverlay(){
   $('lvStats').textContent='очков: '+S.score.toLocaleString('ru-RU')+' · слов найдено: '+found+' из '+all.length;
   $('ovLevel').classList.remove('hidden');
 }
+// ПК: все слова поля справа — найденные зелёные, секрет до находки скрыт точками
+function renderWordBank(){
+  const box=$('wordBank'); if(!box)return;
+  if(S.mode==='menu'){box.innerHTML='';return;}
+  box.innerHTML='';
+  boardWords().forEach(w=>{
+    const isSec=(w===S.secret), hidden=isSec&&!S.secretFound;
+    const d=document.createElement('div');
+    d.className='wchip'+(isSec?' secret':'')+(S.found.has(w)?' foundw':'');
+    d.textContent=hidden?'·'.repeat(w.length):w.toUpperCase();
+    if(!hidden){d.dataset.w=w;d.title='искать «'+w+'» в сети';}
+    box.appendChild(d);
+  });
+}
+$('wordBank').addEventListener('click',e=>{
+  const c=e.target.closest('.wchip'); if(!c||!c.dataset.w)return;
+  window.open('https://yandex.ru/search/?text='+encodeURIComponent(c.dataset.w+' слово'),'_blank','noopener');
+});
 function renderLevelWords(){
   const box=$('lvWords'); box.innerHTML='';
   boardWords().forEach(w=>{
@@ -679,6 +709,8 @@ $('btnBack').addEventListener('click',()=>{
 function nextProvince(){
   S.prov++;
   S.target=200+(S.prov-1)*150;
+  S.score=0;                               // очки — внутри провинции, иначе старая сумма мгновенно «проходит» новый уровень
+  $('scoreNum').textContent='0';
   S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0;
   S.sel=[]; clearPath();
   $('provNum').textContent=ROMAN_G(S.prov);
@@ -844,8 +876,9 @@ function newGame(){
   S.found=new Set(); S.secretFound=false; S.combo=0; S.maxCombo=0; S.autoDone=false; S.autoT=0;
   $('provNum').textContent=ROMAN_G(S.prov); $('scoreNum').textContent='0';
   $('bestStart').textContent=S.best.toLocaleString('ru-RU');
-  genAndRender(); updateProgress(); updateCombo(); updateWordCount();
+  genAndRender(); updateProgress(); updateCombo();
   S.mode='play';
+  updateWordCount();
   toast('Провинция '+ROMAN_G(S.prov)+' — да будет слово!','gold');
 }
 
