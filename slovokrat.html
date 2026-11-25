@@ -103,7 +103,7 @@ header>*{pointer-events:auto}
   opacity:0;transition:opacity .3s;text-shadow:var(--toastSh)}
 #toast.on{opacity:1}
 #toast.good{color:var(--green)}#toast.bad{color:var(--red)}#toast.gold{color:var(--gold)}
-#actions{position:fixed;right:12px;bottom:calc(var(--stagePad,118px) + 18px + env(safe-area-inset-bottom));z-index:21;display:flex;flex-direction:column;gap:8px}
+#actions{display:flex;gap:8px;justify-content:center;margin-top:8px}
 .abtn{min-width:86px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);
   background:var(--panel);font-family:var(--fd);font-size:10.5px;letter-spacing:.1em;color:var(--dim);
   transition:all .15s}
@@ -189,11 +189,10 @@ header>*{pointer-events:auto}
   <div id="progTxt"><span id="progLabel">до покорения провинции</span><span id="wordCount"></span><span id="progScore">0 / 300</span></div>
   <div id="progress"><div id="progressFill"></div></div>
   <div id="words"></div>
-</div>
-
-<div id="actions">
-  <button class="abtn gold" id="btnHint">ПОДСКАЗКА</button>
-  <button class="abtn" id="btnNew">НОВАЯ ИГРА</button>
+  <div id="actions">
+    <button class="abtn gold" id="btnHint">ПОДСКАЗКА</button>
+    <button class="abtn" id="btnNew">НОВАЯ ИГРА</button>
+  </div>
 </div>
 
 <!-- стартовый экран -->
@@ -226,6 +225,19 @@ header>*{pointer-events:auto}
     </div>
     <div id="lvWords" class="hidden"></div>
     <button class="btn ghost hidden" id="btnBack">НАЗАД</button>
+  </div>
+</div>
+
+<!-- подтверждение новой игры -->
+<div class="overlay hidden" id="ovConfirm">
+  <div class="panel">
+    <div class="ov-kicker">новая игра</div>
+    <div class="ov-title" style="font-size:clamp(20px,5vw,28px)">СБРОСИТЬ ПРОГРЕСС?</div>
+    <p class="ov-sub">Текущая провинция, очки и найденные слова будут потеряны. Рекорд сохранится.</p>
+    <div class="lv-btns">
+      <button class="btn" id="btnConfirmNew">НАЧАТЬ ЗАНОВО</button>
+      <button class="btn ghost" id="btnConfirmCancel">ОТМЕНА</button>
+    </div>
   </div>
 </div>
 
@@ -502,14 +514,17 @@ function tryAddTile(i){
 function onMove(e){
   if(!dragging||e.pointerId!==pid)return;
   e.preventDefault();
-  // интерполяция сегмента: быстрый взмах не перескакивает плитки —
-  // иначе по диагонали «промахивался» мимо нужной буквы
-  const x=e.clientX,y=e.clientY;
-  const dx=x-lastPX, dy=y-lastPY, d=Math.hypot(dx,dy);
-  const step=Math.max(8,tilePx*0.35);
-  const n=Math.max(1,Math.ceil(d/step));
-  for(let k=1;k<=n;k++) tryAddTile(tileAt(lastPX+dx*k/n,lastPY+dy*k/n));
-  lastPX=x; lastPY=y;
+  // coalesced events: браузер может склеить несколько перемещений в одно —
+  // берём все промежуточные точки, иначе быстрый взмах теряет плитки
+  const evs=(e.getCoalescedEvents&&e.getCoalescedEvents().length>1)?e.getCoalescedEvents():[e];
+  for(const ev of evs){
+    const x=ev.clientX,y=ev.clientY;
+    const dx=x-lastPX, dy=y-lastPY, d=Math.hypot(dx,dy);
+    const step=Math.max(8,tilePx*0.3);
+    const n=Math.max(1,Math.ceil(d/step));
+    for(let k=1;k<=n;k++) tryAddTile(tileAt(lastPX+dx*k/n,lastPY+dy*k/n));
+    lastPX=x; lastPY=y;
+  }
 }
 function onUp(e){
   window.removeEventListener('pointermove',onMove);
@@ -759,7 +774,9 @@ $('btnSound').addEventListener('click',()=>{S.muted=!S.muted;store.set('muted',S
 document.addEventListener('keydown',e=>{
   if(e.code==='KeyM'){S.muted=!S.muted;store.set('muted',S.muted);updateSoundUI();}
 });
-$('btnNew').addEventListener('click',()=>{AU.ensure();AU.click();newGame();});
+$('btnNew').addEventListener('click',()=>{AU.ensure();AU.click();$('ovConfirm').classList.remove('hidden');});
+$('btnConfirmNew').addEventListener('click',()=>{AU.click();$('ovConfirm').classList.add('hidden');newGame();});
+$('btnConfirmCancel').addEventListener('click',()=>{AU.click();$('ovConfirm').classList.add('hidden');});
 $('btnMenu').addEventListener('click',()=>{AU.click();S.mode='menu';$('ovLevel').classList.add('hidden');$('ovStart').classList.remove('hidden');
   $('bestStart').textContent=S.best.toLocaleString('ru-RU');});
 $('btnHint').addEventListener('click',showHint);
@@ -812,6 +829,9 @@ requestAnimationFrame(frame);
 /* ═══ INIT ═══ */
 updateSoundUI(); updateThemeUI();
 $('bestStart').textContent=S.best.toLocaleString('ru-RU');
+// нижняя панель меняет высоту (чипы слов, кнопки) — поле должно пересчитываться,
+// иначе нижний ряд плиток уезжает под текст прогресса
+if(window.ResizeObserver) new ResizeObserver(()=>sizeBoard()).observe(bottomEl);
 sizeBoard();
 genBoard(); S.secret=pickSecretFromBoard(); renderBoard(); renderWords();   // демо-поле за меню
 </script>
